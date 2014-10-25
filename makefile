@@ -1,9 +1,22 @@
-CC=gcc
-OUTLIB=hxnotify.so
-src=notify.c
-PKG=`pkg-config --cflags --libs libnotify`
-CFLAGS=-export-dynamic -Wall -O1 -shared -fPIC
-all: build
+CC:=gcc
+OUT:=hxnotify.so
+SRC:=notify.c
+OBJDIR:=obj/
+OBJ:=$(patsubst %,$(OBJDIR)%.o,$(SRC))
+PKG:=`pkg-config --cflags --libs libnotify`
+CFLAGS:=-export-dynamic -Wall -O1 -shared -fPIC $(PKG)
 
-build:
-	$(CC) $(CFLAGS) $(PKG) $(src) -o $(OUTLIB)
+%.c.o: $(SRC) $(OBJDIR)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(OUT): $(OBJ)
+	$(CC) $(CFLAGS) $^ -o $(OUT)
+
+.PHONEY: $(OBJDIR)
+.PHONEY: clean
+
+$(OBJDIR):
+	@mkdir -p $(OBJDIR)
+
+clean:
+	rm -rf $(OBJDIR) $(OUT)

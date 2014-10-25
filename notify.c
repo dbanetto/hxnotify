@@ -10,7 +10,7 @@
 static hexchat_plugin *ph;
 
 // util functions
-static char*
+char*
 get_username(char* str)
 {
 	char* ptr = strchr(str, '!');
@@ -26,18 +26,17 @@ get_username(char* str)
 }
 
 // hook functions
+
 static int
 friend_joined_cb (char *word[], char *word_eol[], void *user_data)
 {
-	hexchat_printf(ph, "%s friend notify\n", word_eol[1]);
-
 	NotifyNotification* Hello = notify_notification_new("Friend Online",
-			get_username(word[4]),
+			get_username(word[4]), // add more like, " is online"
 			"hexchat");
 	notify_notification_show(Hello, NULL);
 	g_object_unref(G_OBJECT(Hello));
 
-	return 1;
+	return HEXCHAT_EAT_NONE;
 }
 
 int hexchat_plugin_init(
@@ -72,5 +71,3 @@ int hexchat_plugin_deinit()
 	notify_uninit();
 	return 1;
 }
-
-
