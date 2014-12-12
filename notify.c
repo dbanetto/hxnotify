@@ -132,9 +132,7 @@ notify_on_channel(char* word[], char* word_eol[], void* user_data)
 	int found = 0;
 	while (hexchat_list_next(ph,list))
 	{
-		hexchat_printf(ph, "Checking %s\n", hexchat_list_str(ph, list, "channel"));
 		if (strcmp(word[3], hexchat_list_str(ph, list, "channel")) == 0) {
-			hexchat_printf(ph, "Message came from %s\n", hexchat_list_str(ph, list, "channel"));
 			found = 1;
 			break;
 		}
@@ -145,16 +143,22 @@ notify_on_channel(char* word[], char* word_eol[], void* user_data)
 		return HEXCHAT_EAT_NONE;
 	}
 
-	if ((hexchat_list_int(ph, list, "flag") & 512) == 0) { // 512 is "Blink tray"
+	if (hexchat_list_int(ph, list, "flags") & 1024) {
 		return HEXCHAT_EAT_NONE;
 	}
+
 
 	char* friend = word[1];
 	friend++;
 	int nameln = get_username_length(friend);
 	char* mesg = word[4];
-	mesg += 2; // Skip ':+'
-	int mesgln = (strlen(mesg) < 50 ? strlen(mesg) : 50);
+	mesg++; // Skip ':'
+	if (*mesg == '-' || *mesg == '+') { // Ship '-' or '+' on some servers
+		mesg++;
+	}
+
+	int mesgln = (strlen(mesg) < 50 ?
+	              strlen(mesg) : 50); //BUG: Length to to the 1st whitespace
 
 	char* msg;
 	size_t msg_len = (nameln + mesgln + 3) * sizeof(char);
