@@ -1,4 +1,4 @@
-#include "hexchat-plugin.h"
+#include <hexchat-plugin.h>
 #include <libnotify/notify.h>
 
 #include <stdlib.h>
@@ -63,8 +63,24 @@ friend_online_cb (char* word[], char* word_eol[], void *user_data)
 	static int
 friend_offline_cb (char* word[], char* word_eol[], void* user_data)
 {
+
 	char* friend = strtok(++(word[4]), ",");
 	while (friend != NULL) {
+		hexchat_list* list = hexchat_list_get(ph, "notify");
+		int found = 0;
+		while (hexchat_list_next(ph,list))	{
+			if (strcmp(friend, hexchat_list_str(ph, list, "nick")) == 0) {
+				found = 1;
+				break;
+			}
+		}
+		if (found == 0) {
+			continue;
+		}
+		if (hexchat_list_time(ph, list, "seen") == 0) {
+			continue;
+		}
+
 		int nameln = get_username_length(friend);
 		char* msg;
 		size_t msg_len = (nameln + 11) * sizeof(char);
@@ -80,11 +96,73 @@ friend_offline_cb (char* word[], char* word_eol[], void* user_data)
 
 		notify_notification_show(notify, NULL);
 		g_object_unref(G_OBJECT(notify));
+		hexchat_list_free(ph, list);
 		free(msg);
 
 		friend = strtok(NULL, ",");
 	}
 
+	return HEXCHAT_EAT_NONE;
+}
+
+
+	static int
+notify_on_channel(char* word[], char* word_eol[], void* user_data)
+{
+	if (strcmp("active", hexchat_get_info(ph, "win_status")) == 0) {
+		return HEXCHAT_EAT_NONE;
+	}
+
+	hexchat_list* list = hexchat_list_get(ph, "channels");
+
+	int found = 0;
+	while (hexchat_list_next(ph,list))
+	{
+		if (strcmp(word[3], hexchat_list_str(ph, list, "channel")) == 0) {
+			found = 1;
+			break;
+		}
+	}
+
+	hexchat_list_free(ph, list);
+	if (found == 0) {
+		return HEXCHAT_EAT_NONE;
+	}
+
+	if (hexchat_list_int(ph, list, "flags") & 1024) {
+		return HEXCHAT_EAT_NONE;
+	}
+
+
+	char* friend = word[1];
+	friend++;
+	int nameln = get_username_length(friend);
+	char* mesg = word[4];
+	mesg++; // Skip ':'
+	if (*mesg == '-' || *mesg == '+') { // Ship '-' or '+' on some servers
+		mesg++;
+	}
+
+	int mesgln = (strlen(mesg) < 50 ?
+			strlen(mesg) : 50); //BUG: Length to to the 1st whitespace
+
+	char* msg;
+	size_t msg_len = (nameln + mesgln + 3) * sizeof(char);
+	msg = malloc(msg_len);
+	memset(msg, '\0', msg_len); //Clean memory
+
+	strncat(msg, friend, nameln);
+	strncat(msg, " : ", 3);
+	strncat(msg, mesg, mesgln);
+
+	NotifyNotification* notify = notify_notification_new("Channel Message"
+			,msg
+			,"hexchat");
+
+	// FREEDOM!
+	notify_notification_show(notify, NULL);
+	g_object_unref(G_OBJECT(notify));
+	free(msg);
 	return HEXCHAT_EAT_NONE;
 }
 
@@ -124,63 +202,6 @@ notifcation_test(char* word[], char* word_eol[], void* user_data)
 	return HEXCHAT_EAT_ALL;
 }
 
-	static int
-notify_on_channel(char* word[], char* word_eol[], void* user_data)
-{
-	hexchat_list* list = hexchat_list_get(ph, "channels");
-
-	int found = 0;
-	while (hexchat_list_next(ph,list))
-	{
-		if (strcmp(word[3], hexchat_list_str(ph, list, "channel")) == 0) {
-			found = 1;
-			break;
-		}
-	}
-
-	if (found == 0) {
-		hexchat_list_free(ph, list);
-		return HEXCHAT_EAT_NONE;
-	}
-
-	if (hexchat_list_int(ph, list, "flags") & 1024) {
-		return HEXCHAT_EAT_NONE;
-	}
-
-
-	char* friend = word[1];
-	friend++;
-	int nameln = get_username_length(friend);
-	char* mesg = word[4];
-	mesg++; // Skip ':'
-	if (*mesg == '-' || *mesg == '+') { // Ship '-' or '+' on some servers
-		mesg++;
-	}
-
-	int mesgln = (strlen(mesg) < 50 ?
-	              strlen(mesg) : 50); //BUG: Length to to the 1st whitespace
-
-	char* msg;
-	size_t msg_len = (nameln + mesgln + 3) * sizeof(char);
-	msg = malloc(msg_len);
-	memset(msg, '\0', msg_len); //Clean memory
-
-	strncat(msg, friend, nameln);
-	strncat(msg, " : ", 3);
-	strncat(msg, mesg, mesgln);
-
-	NotifyNotification* notify = notify_notification_new("Channel Message"
-			,msg
-			,"hexchat");
-
-	// FREEDOM!
-	notify_notification_show(notify, NULL);
-	g_object_unref(G_OBJECT(notify));
-	free(msg);
-	hexchat_list_free(ph, list);
-	return HEXCHAT_EAT_NONE;
-}
-
 	int
 hexchat_plugin_init(
 		hexchat_plugin* plugin_handle,
@@ -204,7 +225,7 @@ hexchat_plugin_init(
 	// hooks
 	hexchat_hook_server (ph, "730", HEXCHAT_PRI_NORM, friend_online_cb, NULL);
 	hexchat_hook_server (ph, "PRIVMSG", HEXCHAT_PRI_NORM, notify_on_channel, NULL);
-	//hexchat_hook_server (ph, "731", HEXCHAT_PRI_NORM, friend_offline_cb, NULL);
+	hexchat_hook_server (ph, "731", HEXCHAT_PRI_NORM, friend_offline_cb, NULL);
 
 	//commands
 	hexchat_hook_command(ph, "NotifyTest", HEXCHAT_PRI_NORM, notifcation_test, "", 0);
