@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 __module_name__ = "hxnotify"
-__module_version__ = "0.1"
-__module_description__ = "Python module to display notifications"
+__module_version__ = "0.2"
+__module_description__ = "Python module to display tray notifications"
 
 import hexchat
 
@@ -40,7 +40,7 @@ def channel_msg(word, word_eol, userdata):
         return None
 
     for ch in hexchat.get_list("channels"):
-        if word[2] == ch.channel and bool(ch.flags & 9):
+        if word[2] == ch.channel and bool(ch.flags & 1 << 8):
             hexchat.command("tray -b \"Message in " + ch.channel + "\" \""
                             + get_usrname(word[0]) + ": "
                             + limit_msg(word_eol[3][2:])
@@ -50,6 +50,6 @@ def channel_msg(word, word_eol, userdata):
 
 
 hexchat.hook_server("730", friend_online)
-hexchat.hook_server("731", friend_offline)
+#hexchat.hook_server("731", friend_offline)
 hexchat.hook_server("PRIVMSG", channel_msg)
 print("Loaded " + __module_name__ + " v" + __module_version__)
