@@ -18,7 +18,6 @@ def get_usrname(name):
 
 
 def friend_online(word, word_eol, userdata):
-    print("Online",word)
     for name in word[3][1:].split(','):
         hexchat.command("tray -b \"Friend Online\" \"" +
                         get_usrname(name) + " is online\"")
@@ -26,11 +25,9 @@ def friend_online(word, word_eol, userdata):
 
 
 def friend_offline(word, word_eol, userdata):
-    print('Offline', word)
     for i in hexchat.get_list("notify"):
         for name in word[3][1:].split(','):
             if name == i.nick:
-                print(i.nick, i.on)
                 if i.on != 0: # check if they have been online
                     hexchat.command("tray -b \"Friend Offline\" \"" +
                                     name +
@@ -48,7 +45,7 @@ def channel_msg(word, word_eol, userdata):
             continue
 
         if word[2] == ch.channel:
-            if bool(ch.flags & (1 << 10)): # blink task tray
+            if bool(ch.flags & (1 << 10) != 0): # blink task tray
                 hexchat.command("tray -b \"Message in " + ch.channel + "\" \"" +
                                 get_usrname(word[0]) + ": " +
                                 limit_msg(word_eol[3][2:]) +

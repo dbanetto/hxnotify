@@ -4,7 +4,7 @@ SRC:=notify.c
 OBJDIR:=obj/
 OBJ:=$(patsubst %,$(OBJDIR)%.o,$(SRC))
 PKG:=`pkg-config --cflags --libs libnotify`
-CFLAGS:=-export-dynamic -Wall -O1 -shared -fPIC $(PKG)
+CFLAGS:=-export-dynamic -Wall -O1 -shared -fPIC $(PKG) -std=c11
 
 %.c.o: $(SRC) $(OBJDIR)
 	$(CC) -c -o $@ $< $(CFLAGS)

@@ -1,12 +1,22 @@
-#include <hexchat-plugin.h>
-#include <libnotify/notify.h>
+#include "hexchat-plugin.h"
+#include "libnotify/notify.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include "stdlib.h"
+#include "string.h"
 
 #define PNAME "hxnotify"
 #define PDESC "libnotify notifications for Hexchat"
-#define PVERSION "0.3"
+#define PVERSION "0.3.1"
+
+#define FRIEND_ONLINE "Friend Online"
+#define FRIEND_OFFLINE "Friend Offline"
+
+#define IS_ONLINE " is online"
+#define IS_OFFLINE " is now offline"
+
+#define MESSAGE_IN "Message in "
+
+#define DEBUG true
 
 //TODO: support channel specific notifications of messages
 
@@ -33,12 +43,12 @@ int get_username_length(char *src)
 static int
 friend_online_cb (char *word[], char *word_eol[], void *user_data)
 {
-	char *friend = strtok(++(word[4]), ","); // pass starting ':'
+	char *friends = word[4] + 1;
+	char *friend = strtok(friends, ","); // pass starting ':'
 	while (friend != NULL) {
-		// TODO: have multiple friends in one message?
 		int nameln = get_username_length(friend);
 		char *msg;
-		size_t msg_len = (nameln + 11) * sizeof(char);
+		size_t msg_len = (nameln + strlen(IS_ONLINE) + 1) * sizeof(char);
 		msg = malloc(msg_len);
 		if (msg == NULL) {
 			hexchat_printf(ph, "malloc error");
@@ -47,12 +57,12 @@ friend_online_cb (char *word[], char *word_eol[], void *user_data)
 		memset(msg, '\0', msg_len); //Clean memory
 
 		strncat(msg, friend, nameln);
-		strncat(msg, " is online\0", 11);
+		strncat(msg, IS_ONLINE, strlen(IS_ONLINE));
 
 #if DEBUG
 		hexchat_printf(ph, "%s\n", msg);
 #endif
-		NotifyNotification* notify = notify_notification_new("Friend Online"
+		NotifyNotification* notify = notify_notification_new(FRIEND_ONLINE
 				,msg
 				,"hexchat");
 
@@ -76,7 +86,8 @@ static int
 friend_offline_cb (char *word[], char *word_eol[], void *user_data)
 {
 
-	char *friend = strtok(++(word[3]), ",");
+	char *friends = word[4] + 1;
+	char *friend = strtok(friends, ",");
 	while (friend != NULL) {
 		hexchat_list *list = hexchat_list_get(ph, "notify");
 		int found = 0;
@@ -95,7 +106,7 @@ friend_offline_cb (char *word[], char *word_eol[], void *user_data)
 
 		int nameln = get_username_length(friend);
 		char *msg;
-		size_t msg_len = (nameln + 15) * sizeof(char) + 1;
+		size_t msg_len = (nameln + strlen(IS_OFFLINE) + 1) * sizeof(char);
 		msg = malloc(msg_len);
 		if (msg == NULL) {
 			hexchat_printf(ph, "malloc error");
@@ -104,11 +115,11 @@ friend_offline_cb (char *word[], char *word_eol[], void *user_data)
 		memset(msg, '\0', msg_len); //Clean memory
 
 		strncat(msg, friend, nameln);
-		strcat(msg, " is now offline");
+		strncat(msg, IS_OFFLINE, strlen(IS_OFFLINE));
 #if DEBUG
 		hexchat_printf(ph, "%s\n", msg);
 #endif
-		NotifyNotification* notify = notify_notification_new("Friend Offline"
+		NotifyNotification* notify = notify_notification_new(FRIEND_OFFLINE
 				,msg
 				,"hexchat");
 
@@ -136,7 +147,7 @@ notify_on_channel(char *word[], char *word_eol[], void *user_data)
 
 	// Get Channel the message was from
 	hexchat_list *list = hexchat_list_get(ph, "channels");
-	int found = 0;
+	short int found = 0;
 	while (hexchat_list_next(ph, list))
 	{
 		if (strcmp(word[3], hexchat_list_str(ph, list, "channel")) == 0) {
@@ -153,20 +164,24 @@ notify_on_channel(char *word[], char *word_eol[], void *user_data)
 		int flags = hexchat_list_int(ph, list, "flags");
 		hexchat_list_free(ph, list);
 
+		if (hexchat_list_int(ph, list, "type") != 2) {
+			return HEXCHAT_EAT_NONE;
+		}
+
 		// Check if the "Blink on Tray" flag is set
-		if (flags & 1024) {
+		if ((flags & (1 << 10)) == 0) {
 			return HEXCHAT_EAT_NONE;
 		}
 	}
 
-	char *friend = word[1];
+	char *friend = *(&word[1]);
 	friend++;
 	int nameln = get_username_length(friend);
 
-	char *mesg = word_eol[4];
+	char *mesg = *(&word_eol[4]);
 	// Skip ':'
 	mesg++;
-	// Ship '-' or '+' on some servers' messages
+	// Skip '-' or '+' on some servers' messages
 	if (*mesg == '-' || *mesg == '+') {
 		mesg++;
 	}
@@ -174,7 +189,7 @@ notify_on_channel(char *word[], char *word_eol[], void *user_data)
 	// Generate message
 	int mesgln = (strlen(mesg) < 140 ? strlen(mesg) : 140);
 	char *msg;
-	size_t msg_len = (nameln + mesgln  + 3) * sizeof(char);
+	size_t msg_len = (nameln + mesgln  + 3 + 1) * sizeof(char);
 	msg = malloc(msg_len);
 	if (msg == NULL) {
 		hexchat_printf(ph, "malloc error");
@@ -187,7 +202,7 @@ notify_on_channel(char *word[], char *word_eol[], void *user_data)
 	strncat(msg, mesg, mesgln);
 
 	// Generate title
-	size_t title_t = 11 + strlen(word[3]) * sizeof(char) + 1;
+	size_t title_t = (strlen(MESSAGE_IN) + strlen(word[3]) + 1) * sizeof(char);
 	char *title;
 	title = malloc(title_t);
 	if (title == NULL) {
@@ -197,7 +212,7 @@ notify_on_channel(char *word[], char *word_eol[], void *user_data)
 	}
 	memset(title, '\0', title_t);
 
-	strncat(title, "Message in ", 11);
+	strncat(title, MESSAGE_IN, strlen(MESSAGE_IN));
 	strncat(title, word[3], strlen(word[3]));
 #if DEBUG
 	hexchat_printf(ph, "%s : %s\n", title, msg);
@@ -236,9 +251,9 @@ hexchat_plugin_init(
 	hexchat_printf(ph, "%s plugin loaded\n", PNAME);
 
 	// hooks
-	hexchat_hook_server (ph, "730", HEXCHAT_PRI_NORM, friend_online_cb, NULL);
-	hexchat_hook_server (ph, "PRIVMSG", HEXCHAT_PRI_NORM, notify_on_channel, NULL);
-	/*hexchat_hook_server (ph, "731", HEXCHAT_PRI_NORM, friend_offline_cb, NULL);*/
+	hexchat_hook_server(ph, "730", HEXCHAT_PRI_NORM, friend_online_cb, NULL);
+	hexchat_hook_server(ph, "PRIVMSG", HEXCHAT_PRI_NORM, notify_on_channel, NULL);
+	hexchat_hook_server(ph, "731", HEXCHAT_PRI_NORM, friend_offline_cb, NULL);
 
 	// 1 for success
 	return 1;
