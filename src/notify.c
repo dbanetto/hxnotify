@@ -16,8 +16,6 @@
 
 #define MESSAGE_IN "Message in "
 
-#define DEBUG true
-
 //TODO: support channel specific notifications of messages
 
 // plugin handle
@@ -87,22 +85,24 @@ friend_offline_cb (char *word[], char *word_eol[], void *user_data)
 {
 
 	char *friends = word[4] + 1;
+	hexchat_printf(ph, "%s\n", friends);
 	char *friend = strtok(friends, ",");
 	while (friend != NULL) {
+		hexchat_printf(ph, "%s\n", friend);
 		hexchat_list *list = hexchat_list_get(ph, "notify");
 		int found = 0;
 		while (hexchat_list_next(ph, list))	{
 			if (strcmp(friend, hexchat_list_str(ph, list, "nick")) == 0) {
-				found = 1;
+				if (hexchat_list_time(ph, list, "seen") != 0) { // has been online
+					found = 1;
+				}
 				break;
 			}
 		}
 		if (found == 0) {
 			continue;
 		}
-		if (hexchat_list_time(ph, list, "seen") == 0) {
-			continue;
-		}
+		hexchat_printf(ph, "Found %s\n", friend);
 
 		int nameln = get_username_length(friend);
 		char *msg;
@@ -119,9 +119,9 @@ friend_offline_cb (char *word[], char *word_eol[], void *user_data)
 #if DEBUG
 		hexchat_printf(ph, "%s\n", msg);
 #endif
-		NotifyNotification* notify = notify_notification_new(FRIEND_OFFLINE
-				,msg
-				,"hexchat");
+		NotifyNotification* notify = notify_notification_new(FRIEND_OFFLINE,
+				msg,
+				"hexchat");
 
 		if (notify != NULL) {
 			notify_notification_show(notify, NULL);

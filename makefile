@@ -1,10 +1,10 @@
 CC:=gcc
 OUT:=hxnotify.so
-SRC:=notify.c
+SRC:=src/notify.c
 OBJDIR:=obj/
-OBJ:=$(patsubst %,$(OBJDIR)%.o,$(SRC))
+OBJ:=$(patsubst src/%,$(OBJDIR)%.o,$(SRC))
 PKG:=`pkg-config --cflags --libs libnotify`
-CFLAGS:=-export-dynamic -Wall -O1 -shared -fPIC $(PKG) -std=c11
+CFLAGS:=-export-dynamic -Wall -g1 -shared -fPIC $(PKG) -std=c11
 
 %.c.o: $(SRC) $(OBJDIR)
 	$(CC) -c -o $@ $< $(CFLAGS)
@@ -20,3 +20,9 @@ $(OBJDIR):
 
 clean:
 	rm -rf $(OBJDIR) $(OUT)
+
+install: $(OUT)
+	cp -f $(PWD)/$(OUT) $(HOME)/.config/hexchat/addons/$(OUT)
+
+install-link: $(OUT)
+	ln -s $(PWD)/$(OUT) $(HOME)/.config/hexchat/addons/$(OUT)
