@@ -2,7 +2,7 @@
 import hexchat
 
 __module_name__ = "hxnotify"
-__module_version__ = "0.4"
+__module_version__ = "0.5"
 __module_description__ = "Python module to display tray notifications"
 
 
@@ -49,10 +49,13 @@ def channel_msg(word, word_eol, userdata):
 
         if word[2] == ch.channel:
             if bool(ch.flags & (1 << 10) != 0):  # blink task tray
-                hexchat.command("tray -b \"Message in " + ch.channel +
-                                "\" \"" + get_usrname(word[0]) + ": " +
-                                limit_msg(word_eol[3]) +
-                                "\"")
+                from_user = get_usrname(word[0])
+                # fix getting notifcations from self when a bouncer playback is running
+                if hexchat.get_info('nick').strip() != from_user.strip():
+                    hexchat.command("tray -b \"Message in " + ch.channel +
+                                    "\" \"" + from_user + ": " +
+                                    limit_msg(word_eol[3]) +
+                                    "\"")
             break
 
     return None
