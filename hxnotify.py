@@ -2,7 +2,7 @@
 import hexchat
 
 __module_name__ = "hxnotify"
-__module_version__ = "0.5.0"
+__module_version__ = "0.5.1"
 __module_description__ = "Python module to display tray notifications"
 
 MESSAGE_LIMIT = 160
@@ -51,13 +51,13 @@ def channel_msg(word, word_eol, userdata):
             # check if the chanopt is set
             if bool(ch.flags & blink_tray):
                 my_nick = hexchat.get_info('nick')
-                from_user = word[0]
+                from_user = get_usrname(word[0])
 
                 # fix getting notifcations from self when
                 # a bouncer playback is running
                 if hexchat.nickcmp(from_user, my_nick) != 0:
                     header = "Message ({0}/{1})".format(ch.network, ch.channel)
-                    body = "{0}: {1}".format(get_usrname(from_user),
+                    body = "{0}: {1}".format(from_user,
                                              hexchat.strip(word_eol[3][1:],
                                                            MESSAGE_LIMIT, 3))
                     # send the notification
